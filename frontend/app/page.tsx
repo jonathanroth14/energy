@@ -11,7 +11,7 @@ export default async function DashboardPage() {
     newAlerts: alerts.length,
     bankruptcyCases: alerts.filter((a) => a.signal_type === "New bankruptcy filing").length,
     productionCollapses: alerts.filter((a) => a.signal_type === "Production collapse").length,
-    watchlistHits: alerts.filter((a) => a.asset_id !== null).length,
+    watchlistHits: alerts.filter((a) => a.signal_type.toLowerCase().includes("watchlist")).length,
   };
 
   return (

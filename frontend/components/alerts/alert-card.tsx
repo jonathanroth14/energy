@@ -29,13 +29,12 @@ export function AlertCard({ alert }: { alert: Alert }) {
           </a>
           {alert.asset_id ? (
             <Link href={`/assets/${alert.asset_id}`} className="text-slate-200 hover:text-white">
-              View asset
+              Asset
             </Link>
-          ) : (
-            <Link href={`/alerts/${alert.id}`} className="text-slate-200 hover:text-white">
-              View case
-            </Link>
-          )}
+          ) : null}
+          <Link href={`/alerts/${alert.id}`} className="text-slate-200 hover:text-white">
+            View alert
+          </Link>
         </div>
       </div>
     </article>

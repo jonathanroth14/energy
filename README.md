@@ -1,112 +1,72 @@
-# Frontier Radar MVP
+# Frontier Radar (Demo-Ready MVP)
 
-This repository contains Frontier Radar, an MVP focused on surfacing Texas oil & gas distress signals with full source traceability.
+Frontier Radar is a demo-friendly MVP for surfacing Texas oil & gas distress signals across production and bankruptcy data.
 
-## Backend (FastAPI) local setup
+## Quick Start (local, ~5 minutes)
 
-### Backend folder structure
-```text
-backend/
-  app/
-    api/
-    core/
-    db/
-    ingestion/
-      base.py
-      rrc_production.py
-      normalize.py
-      service.py
-      bankruptcy_base.py
-      courtlistener_bankruptcy.py
-      bankruptcy_normalize.py
-      bankruptcy_service.py
-    models/
-    schemas/
-    services/
-      signals.py
-      bankruptcy_signals.py
-    main.py
-  alembic/
-    versions/
-      0001_init.py
-      0002_ingestion_traceability.py
-      0003_bankruptcy_traceability.py
-  scripts/
-    seed.py
-    run_ingestion.py
-    run_bankruptcy_ingestion.py
-    data/sample_rrc_production.csv
-    data/sample_courtlistener_cases.json
-    data/sample_courtlistener_dockets.json
-```
+### 1) Start Postgres
+Create a DB named `frontier_radar`.
 
-### 1) Prerequisites
-- Python 3.10+
-- Postgres 14+
-- Database named `frontier_radar`
-
-### 2) Configure environment
+### 2) Backend setup
 ```bash
 cp backend/.env.example backend/.env
-```
-
-### 3) Install dependencies
-```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 4) Run migrations
-```bash
 alembic upgrade head
-```
-
-### 5) Load seed/demo data
-```bash
 python -m scripts.seed
+uvicorn app.main:app --reload
 ```
+Backend URL: `http://localhost:8000`
 
-### 6) Run production ingestion manually
+### 3) Frontend setup
 ```bash
+cd ../frontend
+cp .env.example .env.local
+npm install
+npm run dev
+```
+Frontend URL: `http://localhost:3000`
+
+> The UI is intentionally marked **Demo Mode** and is pre-populated by realistic seeded data.
+
+---
+
+## Demo data scenarios included
+Seeding creates believable walk-through scenarios for:
+- Production collapse
+- Inactivity / shut-in proxy
+- New bankruptcy filing (including Chapter 11)
+- Asset sale motion keyword hit (`363`, `sale motion`, `APA`, etc.)
+- Watchlist-triggered debtor/operator name match
+
+All seeded alerts include source links and can be opened from alert cards via **View alert**.
+
+## Optional ingestion commands
+### Production ingestion (RRC source)
+```bash
+cd backend
 python -m scripts.run_ingestion --source-url "$RRC_PRODUCTION_SOURCE_URL"
 ```
 
-### 7) Run bankruptcy ingestion manually (CourtListener / RECAP-compatible)
+### Bankruptcy ingestion (CourtListener-compatible)
 ```bash
+cd backend
 python -m scripts.run_bankruptcy_ingestion \
   --cases-source "$COURTLISTENER_CASES_SOURCE_URL" \
   --dockets-source "$COURTLISTENER_DOCKETS_SOURCE_URL"
 ```
 
-Local sample JSON option:
+### Local sample bankruptcy payloads
 ```bash
+cd backend
 python -m scripts.run_bankruptcy_ingestion \
   --cases-source "file://$(pwd)/scripts/data/sample_courtlistener_cases.json" \
   --dockets-source "file://$(pwd)/scripts/data/sample_courtlistener_dockets.json"
 ```
 
-### 8) Start API
-```bash
-uvicorn app.main:app --reload
-```
-
-## Ingestion notes
-- Source adapters are modular under `app/ingestion/*` so PACER-compatible sources can be added later.
-- Bankruptcy ingestion currently assumes CourtListener-style JSON payloads with `results` arrays and stable IDs.
-- Ingestion jobs are re-runnable/idempotent through external-id upserts and update semantics.
-- Traceability is stored for every case/docket via `source_url`, `source_provider`, and `source_metadata`.
-- Logging covers successful fetches, parse failures, and partial normalization failures.
-
-## Signals implemented
-- **Production collapse**: latest full month output down `>= 40%` vs trailing 3-month average.
-- **Inactivity / shut-in proxy**: no production reports for `2+` consecutive periods after prior production history.
-- **New bankruptcy filing**: Chapter 11/7 case creation.
-- **Asset sale motion keyword hit**: docket text contains 363/sale-motion/APA/stalking-horse/bid-procedure terms.
-- **Watchlist bankruptcy match**: normalized debtor names match watched operator entities.
-
-## Backend API endpoints
+## API endpoints (MVP)
 - `GET /alerts`
 - `GET /alerts/{id}`
 - `GET /assets`

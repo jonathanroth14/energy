@@ -16,15 +16,10 @@ from app.models import (
 from app.services.bankruptcy_signals import run_bankruptcy_signal_evaluation
 from app.services.signals import run_signal_evaluation
 
-SIGNAL_TYPES = [
-    "Production collapse",
-    "Inactivity / shut-in proxy",
-    "New bankruptcy filing",
-    "Asset sale motion keyword hit",
-]
-SEVERITIES = ["low", "medium", "high"]
-COUNTIES = ["Midland", "Reeves", "Howard", "Karnes", "La Salle"]
-FIELDS = ["Spraberry", "Wolfcamp", "Eagle Ford", "Bone Spring", "Yates"]
+
+def month_start(months_ago: int) -> date:
+    today = date.today().replace(day=1)
+    return today - timedelta(days=30 * months_ago)
 
 
 def run() -> None:
@@ -34,95 +29,115 @@ def run() -> None:
             db.execute(delete(model))
         db.commit()
 
+        operator_names = [
+            "Blue Mesa Operating",
+            "Lone Star Petroleum Partners",
+            "Rio Bend Energy",
+            "Permian Crest Resources",
+            "Karnes Basin Exploration",
+            "West Fork Oil & Gas",
+            "Red River Production Co",
+            "Coyote Draw Energy",
+            "Pioneer Hill Resources",
+            "Mustang Ridge Operating",
+        ]
         operators = [
-            Operator(name=f"Operator {i}", headquarters="Houston, TX", source_url="https://www.rrc.texas.gov/", source_metadata={"seed": True})
-            for i in range(1, 11)
+            Operator(
+                name=name,
+                headquarters="Houston, TX",
+                source_url="https://www.rrc.texas.gov/oil-and-gas/research-and-statistics/production-data/",
+                source_metadata={"seed": True, "dataset": "frontier-radar-demo"},
+            )
+            for name in operator_names
         ]
         db.add_all(operators)
         db.flush()
 
+        counties = ["Midland", "Reeves", "Howard", "Karnes", "La Salle"]
+        fields = ["Spraberry", "Wolfcamp", "Bone Spring", "Eagle Ford", "Yates"]
         assets: list[Asset] = []
-        for i in range(1, 26):
+        for i in range(25):
             assets.append(
                 Asset(
-                    operator_id=operators[(i - 1) % len(operators)].id,
-                    name=f"Asset {i}",
-                    county=COUNTIES[i % len(COUNTIES)],
-                    field=FIELDS[i % len(FIELDS)],
+                    operator_id=operators[i % len(operators)].id,
+                    name=f"{['Mustang', 'Falcon', 'Mesa', 'Coyote', 'Pioneer'][i % 5]} Unit {i + 1}",
+                    county=counties[i % len(counties)],
+                    field=fields[i % len(fields)],
                     basin="Permian" if i % 2 == 0 else "Eagle Ford",
-                    status="active" if i % 5 != 0 else "watch",
-                    source_url="https://www.rrc.texas.gov/",
+                    status="active" if i % 6 else "watch",
+                    source_url="https://www.rrc.texas.gov/oil-and-gas/research-and-statistics/production-data/",
                     source_metadata={"seed": True},
                 )
             )
         db.add_all(assets)
         db.flush()
 
-        today = date.today().replace(day=1)
         production_records: list[ProductionRecord] = []
 
-        # Alert demonstration pattern 1: production collapse for asset 1
-        collapse_months = [today - timedelta(days=30 * i) for i in range(4)]
-        collapse_values = [120.0, 300.0, 320.0, 310.0]
-        for period, oil in zip(collapse_months, collapse_values):
+        # Scenario 1: production collapse (asset 1)
+        collapse_asset = assets[0]
+        for idx, oil in enumerate([110, 340, 355, 330]):
+            period = month_start(idx)
             production_records.append(
                 ProductionRecord(
-                    asset_id=assets[0].id,
+                    asset_id=collapse_asset.id,
                     period_date=period,
                     oil_bbl=oil,
-                    gas_mcf=1200,
-                    water_bbl=100,
-                    source_url="https://www.rrc.texas.gov/oil-and-gas/research-and-statistics/production-data/",
-                    source_record_id=f"seed-collapse-{period.isoformat()}",
-                    source_metadata={"seed": "collapse-demo"},
+                    gas_mcf=1600,
+                    water_bbl=120,
+                    source_url="https://www.rrc.texas.gov/media/f4wifn4v/oil-gas-production-data.xlsx",
+                    source_record_id=f"demo-collapse-{collapse_asset.id}-{period.isoformat()}",
+                    source_metadata={"seed_scenario": "production-collapse"},
                 )
             )
 
-        # Alert demonstration pattern 2: inactivity for asset 2 (gap >= 60 days)
-        inactivity_periods = [today, today - timedelta(days=90), today - timedelta(days=120)]
-        inactivity_oil = [0.0, 260.0, 270.0]
+        # Scenario 2: inactivity (asset 2)
+        inactivity_asset = assets[1]
+        inactivity_periods = [month_start(0), month_start(3), month_start(4)]
+        inactivity_oil = [0, 260, 255]
         for period, oil in zip(inactivity_periods, inactivity_oil):
             production_records.append(
                 ProductionRecord(
-                    asset_id=assets[1].id,
+                    asset_id=inactivity_asset.id,
                     period_date=period,
                     oil_bbl=oil,
-                    gas_mcf=1500,
-                    water_bbl=110,
-                    source_url="https://www.rrc.texas.gov/oil-and-gas/research-and-statistics/production-data/",
-                    source_record_id=f"seed-inactivity-{period.isoformat()}",
-                    source_metadata={"seed": "inactivity-demo"},
+                    gas_mcf=1200,
+                    water_bbl=95,
+                    source_url="https://www.rrc.texas.gov/media/f4wifn4v/oil-gas-production-data.xlsx",
+                    source_record_id=f"demo-inactive-{inactivity_asset.id}-{period.isoformat()}",
+                    source_metadata={"seed_scenario": "inactivity"},
                 )
             )
 
-        # Remaining records to keep realistic volume
+        # General coverage records so dashboard/feed looks populated
         for i in range(43):
             asset = assets[(i + 2) % len(assets)]
-            period = today - timedelta(days=30 * (i % 4 + 1))
+            period = month_start((i % 4) + 1)
             production_records.append(
                 ProductionRecord(
                     asset_id=asset.id,
                     period_date=period,
-                    oil_bbl=max(0, 500 - i * 4),
-                    gas_mcf=max(0, 3000 - i * 11),
-                    water_bbl=120 + i,
-                    source_url="https://www.rrc.texas.gov/oil-and-gas/research-and-statistics/production-data/",
-                    source_record_id=f"seed-{asset.id}-{period.isoformat()}",
+                    oil_bbl=max(80, 620 - i * 7),
+                    gas_mcf=max(400, 3100 - i * 21),
+                    water_bbl=140 + i,
+                    source_url="https://www.rrc.texas.gov/media/f4wifn4v/oil-gas-production-data.xlsx",
+                    source_record_id=f"demo-{asset.id}-{period.isoformat()}",
                     source_metadata={"seed": True},
                 )
             )
         db.add_all(production_records)
 
+        # Bankruptcy cases: include one explicit chapter 11 tied to a watched operator-like debtor
         cases = [
             CourtCase(
-                debtor_name="Operator 1 Energy LLC",
+                debtor_name="Blue Mesa Operating LLC",
                 chapter="Chapter 11",
                 court_name="US Bankruptcy Court SDTX",
-                filed_date=today - timedelta(days=10),
-                source_url="https://www.courtlistener.com/docket/1001/operator-1-energy-llc/",
-                external_case_id="1001",
+                filed_date=month_start(0),
+                source_url="https://www.courtlistener.com/docket/220100/blue-mesa-operating-llc/",
+                external_case_id="220100",
                 source_provider="courtlistener",
-                source_metadata={"seed": "chapter11-watchlist"},
+                source_metadata={"seed_scenario": "chapter-11"},
             )
         ]
         for i in range(2, 6):
@@ -131,84 +146,96 @@ def run() -> None:
                     debtor_name=f"Texas Energy Debtor {i}",
                     chapter="Chapter 11" if i % 2 else "Chapter 7",
                     court_name="US Bankruptcy Court SDTX",
-                    filed_date=today - timedelta(days=10 * i),
-                    source_url=f"https://example.com/cases/{i}",
-                    external_case_id=f"seed-case-{i}",
-                    source_provider="seed",
+                    filed_date=month_start(0) - timedelta(days=i * 5),
+                    source_url=f"https://www.courtlistener.com/docket/22010{i}/debtor-{i}/",
+                    external_case_id=f"22010{i}",
+                    source_provider="courtlistener",
                     source_metadata={"seed": True},
                 )
             )
         db.add_all(cases)
         db.flush()
 
-        docket_entries = [
+        # Docket entries include sale-motion keywords
+        dockets = [
             DocketEntry(
                 court_case_id=cases[0].id,
-                entry_date=today - timedelta(days=3),
-                title="Motion for approval of sale under 363",
-                content="Debtor files sale motion with asset purchase agreement (APA) and stalking horse bid procedures.",
-                source_url="https://www.courtlistener.com/docket/1001/5001/",
-                external_docket_id="5001",
+                entry_date=month_start(0) + timedelta(days=5),
+                title="Motion for approval of sale under 11 U.S.C. §363",
+                content="Debtor seeks approval of sale motion, asset purchase agreement (APA), stalking horse protections and bid procedures.",
+                source_url="https://www.courtlistener.com/docket/220100/15/motion-for-sale/",
+                external_docket_id="880015",
                 source_provider="courtlistener",
-                source_metadata={"seed": "sale-motion-hit"},
+                source_metadata={"seed_scenario": "sale-motion-hit"},
             )
         ]
         keywords = ["363", "sale motion", "asset purchase agreement", "APA", "stalking horse", "bid procedures"]
         for i in range(2, 21):
-            docket_entries.append(
+            dockets.append(
                 DocketEntry(
                     court_case_id=cases[(i - 1) % len(cases)].id,
-                    entry_date=today - timedelta(days=i),
+                    entry_date=month_start(0) - timedelta(days=i),
                     title=f"Docket Entry {i}",
-                    content=f"Includes {keywords[i % len(keywords)]} details for case {i}",
+                    content=f"Includes {keywords[i % len(keywords)]} discussion for case review.",
                     source_url=f"https://example.com/dockets/{i}",
                     external_docket_id=f"seed-docket-{i}",
                     source_provider="seed",
                     source_metadata={"seed": True},
                 )
             )
-        db.add_all(docket_entries)
+        db.add_all(dockets)
 
-        alerts = []
-        for i in range(1, 25):
-            signal = SIGNAL_TYPES[(i - 1) % len(SIGNAL_TYPES)]
-            asset_ref = assets[(i - 1) % len(assets)] if signal != "New bankruptcy filing" else None
-            case_ref = cases[(i - 1) % len(cases)] if signal in ["New bankruptcy filing", "Asset sale motion keyword hit"] else None
-            alerts.append(
+        # Base alerts for feed volume + all have valid id/detail route once inserted
+        base_alerts = []
+        scenario_types = [
+            "Production collapse",
+            "Inactivity / shut-in proxy",
+            "New bankruptcy filing",
+            "Asset sale motion keyword hit",
+            "Watchlist bankruptcy match",
+        ]
+        severities = ["high", "medium", "high", "medium", "high"]
+        for i in range(25):
+            signal = scenario_types[i % len(scenario_types)]
+            asset_ref = assets[i % len(assets)] if signal in {"Production collapse", "Inactivity / shut-in proxy"} else None
+            case_ref = cases[i % len(cases)] if signal in {"New bankruptcy filing", "Asset sale motion keyword hit", "Watchlist bankruptcy match"} else None
+            base_alerts.append(
                 Alert(
                     asset_id=asset_ref.id if asset_ref else None,
                     court_case_id=case_ref.id if case_ref else None,
                     signal_type=signal,
-                    severity=SEVERITIES[(i - 1) % len(SEVERITIES)],
-                    title=f"{signal} detected #{i}",
-                    why_fired="Seeded alert for demo feed coverage.",
-                    event_date=today - timedelta(days=i),
-                    source_url=f"https://example.com/source/{i}",
+                    severity=severities[i % len(severities)],
+                    title=f"{signal}: demo event {i + 1}",
+                    why_fired="Demo alert seeded for realistic feed coverage and walkthrough reliability.",
+                    event_date=month_start(0) - timedelta(days=i),
+                    source_url=f"https://demo.frontierradar.local/alerts/source/{i + 1}",
                 )
             )
-        db.add_all(alerts)
+        db.add_all(base_alerts)
 
         watchlists = [
-            Watchlist(name="Permian Distress", description="High-conviction distressed opportunities"),
-            Watchlist(name="Bankruptcy Tracker", description="Texas court-driven opportunities"),
+            Watchlist(name="Permian Distress", description="Distressed PDP opportunities in Midland/Reeves"),
+            Watchlist(name="Bankruptcy Tracker", description="Texas Chapter 11/7 events with transaction potential"),
         ]
         db.add_all(watchlists)
         db.flush()
 
-        for idx, asset in enumerate(assets[:8]):
+        # Ensure watchlist match scenario is possible (watchlist includes Blue Mesa operator assets)
+        tracked_asset_indexes = [0, 1, 2, 3, 5, 8, 12, 15]
+        for idx, asset_index in enumerate(tracked_asset_indexes):
             db.add(
                 WatchlistItem(
                     watchlist_id=watchlists[idx % 2].id,
-                    asset_id=asset.id,
-                    notes="Initial seeded watchlist item",
+                    asset_id=assets[asset_index].id,
+                    notes="Seeded tracked entity for demo walk-through",
                 )
             )
 
         db.commit()
 
-        generated_prod = run_signal_evaluation(db)
-        generated_bankruptcy = run_bankruptcy_signal_evaluation(db)
-        print(f"Seed complete; generated {generated_prod + generated_bankruptcy} rule-based alerts")
+        created_production = run_signal_evaluation(db)
+        created_bankruptcy = run_bankruptcy_signal_evaluation(db)
+        print(f"Seed complete: production alerts={created_production}, bankruptcy alerts={created_bankruptcy}")
     finally:
         db.close()
 

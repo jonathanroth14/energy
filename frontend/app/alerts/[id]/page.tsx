@@ -27,6 +27,9 @@ export default async function AlertDetailPage({ params }: { params: { id: string
             ? `This alert is tied to Asset #${alert.asset_id}.`
             : `This alert is tied to Case #${alert.court_case_id ?? "n/a"}.`}
         </p>
+        <a className="mt-3 inline-block text-sm text-cyan-400 hover:text-cyan-300" href={alert.source_url} target="_blank" rel="noreferrer">
+          Open source record
+        </a>
       </section>
     </div>
   );

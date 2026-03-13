@@ -15,6 +15,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/watchlists" className="hover:text-white">Watchlists</Link>
             </div>
           </nav>
+          <div className="border-t border-slate-800 bg-amber-500/10 px-6 py-2 text-xs text-amber-200">
+            Demo Mode: using seeded/sample data for product walkthroughs.
+          </div>
         </header>
         <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
       </body>
