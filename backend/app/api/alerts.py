@@ -12,16 +12,22 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 @router.get("", response_model=list[AlertOut])
 def get_alerts(
-    county: str | None = None,
-    field: str | None = None,
-    operator: str | None = None,
-    signal_type: str | None = None,
-    severity: str | None = None,
+    county: str | None = Query(default=None),
+    operator: str | None = Query(default=None),
+    alert_type: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    filters = AlertFilters(county, field, operator, signal_type, severity, start_date, end_date)
+    filters = AlertFilters(
+        county=county,
+        operator=operator,
+        alert_type=alert_type,
+        severity=severity,
+        start_date=start_date,
+        end_date=end_date,
+    )
     return list_alerts(db, filters)
 
 

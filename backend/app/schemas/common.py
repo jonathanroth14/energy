@@ -1,8 +1,11 @@
 from datetime import date
-from pydantic import BaseModel
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AlertOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     asset_id: int | None
     signal_type: str
@@ -12,21 +15,19 @@ class AlertOut(BaseModel):
     event_date: date
     source_url: str
 
-    class Config:
-        from_attributes = True
-
 
 class ProductionRecordOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     period_date: date
     oil_bbl: float
     gas_mcf: float
     water_bbl: float
 
-    class Config:
-        from_attributes = True
-
 
 class AssetOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     operator_id: int
     name: str
@@ -35,9 +36,6 @@ class AssetOut(BaseModel):
     basin: str
     status: str
 
-    class Config:
-        from_attributes = True
-
 
 class AssetDetailOut(AssetOut):
     production_records: list[ProductionRecordOut]
@@ -45,29 +43,27 @@ class AssetDetailOut(AssetOut):
 
 
 class WatchlistItemCreate(BaseModel):
-    asset_id: int
-    notes: str | None = None
+    asset_id: int = Field(gt=0)
+    notes: str | None = Field(default=None, max_length=1000)
 
 
 class WatchlistCreate(BaseModel):
-    name: str
-    description: str | None = None
+    name: str = Field(min_length=1, max_length=100)
+    description: str | None = Field(default=None, max_length=500)
 
 
 class WatchlistItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     asset_id: int
     notes: str | None
 
-    class Config:
-        from_attributes = True
-
 
 class WatchlistOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     description: str | None
     items: list[WatchlistItemOut] = []
-
-    class Config:
-        from_attributes = True

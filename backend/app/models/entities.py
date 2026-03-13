@@ -59,6 +59,7 @@ class CourtCase(Base):
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
 
     docket_entries: Mapped[list["DocketEntry"]] = relationship(back_populates="court_case")
+    alerts: Mapped[list["Alert"]] = relationship(back_populates="court_case")
 
 
 class DocketEntry(Base):
@@ -89,6 +90,7 @@ class Alert(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     asset: Mapped[Optional[Asset]] = relationship(back_populates="alerts")
+    court_case: Mapped[Optional[CourtCase]] = relationship(back_populates="alerts")
 
 
 class Watchlist(Base):

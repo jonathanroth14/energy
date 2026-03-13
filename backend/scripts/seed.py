@@ -1,6 +1,4 @@
 from datetime import date, timedelta
-import random
-
 from sqlalchemy import delete
 
 from app.db.session import SessionLocal
@@ -138,5 +136,4 @@ def run() -> None:
 
 
 if __name__ == "__main__":
-    random.seed(42)
     run()
