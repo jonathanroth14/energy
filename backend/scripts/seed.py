@@ -13,6 +13,7 @@ from app.models import (
     Watchlist,
     WatchlistItem,
 )
+from app.services.bankruptcy_signals import run_bankruptcy_signal_evaluation
 from app.services.signals import run_signal_evaluation
 
 SIGNAL_TYPES = [
@@ -112,8 +113,19 @@ def run() -> None:
             )
         db.add_all(production_records)
 
-        cases = []
-        for i in range(1, 6):
+        cases = [
+            CourtCase(
+                debtor_name="Operator 1 Energy LLC",
+                chapter="Chapter 11",
+                court_name="US Bankruptcy Court SDTX",
+                filed_date=today - timedelta(days=10),
+                source_url="https://www.courtlistener.com/docket/1001/operator-1-energy-llc/",
+                external_case_id="1001",
+                source_provider="courtlistener",
+                source_metadata={"seed": "chapter11-watchlist"},
+            )
+        ]
+        for i in range(2, 6):
             cases.append(
                 CourtCase(
                     debtor_name=f"Texas Energy Debtor {i}",
@@ -121,14 +133,28 @@ def run() -> None:
                     court_name="US Bankruptcy Court SDTX",
                     filed_date=today - timedelta(days=10 * i),
                     source_url=f"https://example.com/cases/{i}",
+                    external_case_id=f"seed-case-{i}",
+                    source_provider="seed",
+                    source_metadata={"seed": True},
                 )
             )
         db.add_all(cases)
         db.flush()
 
-        docket_entries = []
+        docket_entries = [
+            DocketEntry(
+                court_case_id=cases[0].id,
+                entry_date=today - timedelta(days=3),
+                title="Motion for approval of sale under 363",
+                content="Debtor files sale motion with asset purchase agreement (APA) and stalking horse bid procedures.",
+                source_url="https://www.courtlistener.com/docket/1001/5001/",
+                external_docket_id="5001",
+                source_provider="courtlistener",
+                source_metadata={"seed": "sale-motion-hit"},
+            )
+        ]
         keywords = ["363", "sale motion", "asset purchase agreement", "APA", "stalking horse", "bid procedures"]
-        for i in range(1, 21):
+        for i in range(2, 21):
             docket_entries.append(
                 DocketEntry(
                     court_case_id=cases[(i - 1) % len(cases)].id,
@@ -136,6 +162,9 @@ def run() -> None:
                     title=f"Docket Entry {i}",
                     content=f"Includes {keywords[i % len(keywords)]} details for case {i}",
                     source_url=f"https://example.com/dockets/{i}",
+                    external_docket_id=f"seed-docket-{i}",
+                    source_provider="seed",
+                    source_metadata={"seed": True},
                 )
             )
         db.add_all(docket_entries)
@@ -177,8 +206,9 @@ def run() -> None:
 
         db.commit()
 
-        generated = run_signal_evaluation(db)
-        print(f"Seed complete; generated {generated} rule-based alerts")
+        generated_prod = run_signal_evaluation(db)
+        generated_bankruptcy = run_bankruptcy_signal_evaluation(db)
+        print(f"Seed complete; generated {generated_prod + generated_bankruptcy} rule-based alerts")
     finally:
         db.close()
 

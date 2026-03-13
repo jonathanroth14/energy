@@ -1,0 +1,20 @@
+{
+  "results": [
+    {
+      "id": 5001,
+      "docket": 1001,
+      "date_filed": "2026-03-07",
+      "short_description": "Motion for approval of sale under 363",
+      "description": "Debtor files sale motion and APA with stalking horse bid procedures.",
+      "absolute_url": "https://www.courtlistener.com/docket/1001/5001/"
+    },
+    {
+      "id": 5002,
+      "docket": 1002,
+      "date_filed": "2026-03-08",
+      "short_description": "Status conference notice",
+      "description": "Administrative scheduling notice",
+      "absolute_url": "https://www.courtlistener.com/docket/1002/5002/"
+    }
+  ]
+}

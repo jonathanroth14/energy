@@ -1,0 +1,20 @@
+{
+  "results": [
+    {
+      "id": 1001,
+      "debtor_name": "Operator 1 Energy LLC",
+      "chapter": "Chapter 11",
+      "court_name": "US Bankruptcy Court SDTX",
+      "filed_date": "2026-03-01",
+      "absolute_url": "https://www.courtlistener.com/docket/1001/operator-1-energy-llc/"
+    },
+    {
+      "id": 1002,
+      "debtor_name": "West Texas Drilling Co",
+      "chapter": "Chapter 7",
+      "court_name": "US Bankruptcy Court NDTX",
+      "filed_date": "2026-03-05",
+      "absolute_url": "https://www.courtlistener.com/docket/1002/west-texas-drilling-co/"
+    }
+  ]
+}

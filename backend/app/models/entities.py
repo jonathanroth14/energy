@@ -67,6 +67,9 @@ class CourtCase(Base):
     court_name: Mapped[str] = mapped_column(String(255), nullable=False)
     filed_date: Mapped[date] = mapped_column(Date, nullable=False)
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    external_case_id: Mapped[Optional[str]] = mapped_column(String(100), unique=True)
+    source_provider: Mapped[Optional[str]] = mapped_column(String(50))
+    source_metadata: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
 
     docket_entries: Mapped[list["DocketEntry"]] = relationship(back_populates="court_case")
     alerts: Mapped[list["Alert"]] = relationship(back_populates="court_case")
@@ -81,6 +84,9 @@ class DocketEntry(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    external_docket_id: Mapped[Optional[str]] = mapped_column(String(120), unique=True)
+    source_provider: Mapped[Optional[str]] = mapped_column(String(50))
+    source_metadata: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
 
     court_case: Mapped[CourtCase] = relationship(back_populates="docket_entries")
 
@@ -123,3 +129,4 @@ class WatchlistItem(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text)
 
     watchlist: Mapped[Watchlist] = relationship(back_populates="items")
+    asset: Mapped[Asset] = relationship()
