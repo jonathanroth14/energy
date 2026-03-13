@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+
 from sqlalchemy import delete
 
 from app.db.session import SessionLocal
@@ -12,6 +13,7 @@ from app.models import (
     Watchlist,
     WatchlistItem,
 )
+from app.services.signals import run_signal_evaluation
 
 SIGNAL_TYPES = [
     "Production collapse",
@@ -31,11 +33,14 @@ def run() -> None:
             db.execute(delete(model))
         db.commit()
 
-        operators = [Operator(name=f"Operator {i}", headquarters="Houston, TX") for i in range(1, 11)]
+        operators = [
+            Operator(name=f"Operator {i}", headquarters="Houston, TX", source_url="https://www.rrc.texas.gov/", source_metadata={"seed": True})
+            for i in range(1, 11)
+        ]
         db.add_all(operators)
         db.flush()
 
-        assets = []
+        assets: list[Asset] = []
         for i in range(1, 26):
             assets.append(
                 Asset(
@@ -45,15 +50,53 @@ def run() -> None:
                     field=FIELDS[i % len(FIELDS)],
                     basin="Permian" if i % 2 == 0 else "Eagle Ford",
                     status="active" if i % 5 != 0 else "watch",
+                    source_url="https://www.rrc.texas.gov/",
+                    source_metadata={"seed": True},
                 )
             )
         db.add_all(assets)
         db.flush()
 
-        production_records = []
         today = date.today().replace(day=1)
-        for i in range(50):
-            asset = assets[i % len(assets)]
+        production_records: list[ProductionRecord] = []
+
+        # Alert demonstration pattern 1: production collapse for asset 1
+        collapse_months = [today - timedelta(days=30 * i) for i in range(4)]
+        collapse_values = [120.0, 300.0, 320.0, 310.0]
+        for period, oil in zip(collapse_months, collapse_values):
+            production_records.append(
+                ProductionRecord(
+                    asset_id=assets[0].id,
+                    period_date=period,
+                    oil_bbl=oil,
+                    gas_mcf=1200,
+                    water_bbl=100,
+                    source_url="https://www.rrc.texas.gov/oil-and-gas/research-and-statistics/production-data/",
+                    source_record_id=f"seed-collapse-{period.isoformat()}",
+                    source_metadata={"seed": "collapse-demo"},
+                )
+            )
+
+        # Alert demonstration pattern 2: inactivity for asset 2 (gap >= 60 days)
+        inactivity_periods = [today, today - timedelta(days=90), today - timedelta(days=120)]
+        inactivity_oil = [0.0, 260.0, 270.0]
+        for period, oil in zip(inactivity_periods, inactivity_oil):
+            production_records.append(
+                ProductionRecord(
+                    asset_id=assets[1].id,
+                    period_date=period,
+                    oil_bbl=oil,
+                    gas_mcf=1500,
+                    water_bbl=110,
+                    source_url="https://www.rrc.texas.gov/oil-and-gas/research-and-statistics/production-data/",
+                    source_record_id=f"seed-inactivity-{period.isoformat()}",
+                    source_metadata={"seed": "inactivity-demo"},
+                )
+            )
+
+        # Remaining records to keep realistic volume
+        for i in range(43):
+            asset = assets[(i + 2) % len(assets)]
             period = today - timedelta(days=30 * (i % 4 + 1))
             production_records.append(
                 ProductionRecord(
@@ -62,6 +105,9 @@ def run() -> None:
                     oil_bbl=max(0, 500 - i * 4),
                     gas_mcf=max(0, 3000 - i * 11),
                     water_bbl=120 + i,
+                    source_url="https://www.rrc.texas.gov/oil-and-gas/research-and-statistics/production-data/",
+                    source_record_id=f"seed-{asset.id}-{period.isoformat()}",
+                    source_metadata={"seed": True},
                 )
             )
         db.add_all(production_records)
@@ -95,7 +141,7 @@ def run() -> None:
         db.add_all(docket_entries)
 
         alerts = []
-        for i in range(1, 31):
+        for i in range(1, 25):
             signal = SIGNAL_TYPES[(i - 1) % len(SIGNAL_TYPES)]
             asset_ref = assets[(i - 1) % len(assets)] if signal != "New bankruptcy filing" else None
             case_ref = cases[(i - 1) % len(cases)] if signal in ["New bankruptcy filing", "Asset sale motion keyword hit"] else None
@@ -106,7 +152,7 @@ def run() -> None:
                     signal_type=signal,
                     severity=SEVERITIES[(i - 1) % len(SEVERITIES)],
                     title=f"{signal} detected #{i}",
-                    why_fired="Rule matched based on month-over-month decline, inactivity window, bankruptcy chapter hit, or sale motion keyword.",
+                    why_fired="Seeded alert for demo feed coverage.",
                     event_date=today - timedelta(days=i),
                     source_url=f"https://example.com/source/{i}",
                 )
@@ -130,7 +176,9 @@ def run() -> None:
             )
 
         db.commit()
-        print("Seed complete")
+
+        generated = run_signal_evaluation(db)
+        print(f"Seed complete; generated {generated} rule-based alerts")
     finally:
         db.close()
 

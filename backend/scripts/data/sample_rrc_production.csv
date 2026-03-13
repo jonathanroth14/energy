@@ -1,0 +1,6 @@
+record_id,production_month,operator_name,lease_name,county,field,basin,oil_bbl,gas_mcf,water_bbl
+s1,2026-01,Lone Star Energy,Mustang A,Midland,Spraberry,Permian,320,1500,100
+s2,2026-02,Lone Star Energy,Mustang A,Midland,Spraberry,Permian,310,1450,102
+s3,2026-03,Lone Star Energy,Mustang A,Midland,Spraberry,Permian,120,1400,99
+s4,2026-01,Rio Plains LLC,Falcon B,Howard,Wolfcamp,Permian,260,1300,80
+s5,2026-04,Rio Plains LLC,Falcon B,Howard,Wolfcamp,Permian,0,0,70

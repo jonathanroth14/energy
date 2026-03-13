@@ -9,18 +9,15 @@ This repository contains Frontier Radar, an MVP focused on surfacing Texas oil &
 backend/
   app/
     api/
-      alerts.py
-      assets.py
-      watchlists.py
     core/
-      config.py
     db/
+    ingestion/
       base.py
-      session.py
+      rrc_production.py
+      normalize.py
+      service.py
     models/
-      entities.py
     schemas/
-      common.py
     services/
       alerts.py
       assets.py
@@ -30,11 +27,11 @@ backend/
   alembic/
     versions/
       0001_init.py
-    env.py
+      0002_ingestion_traceability.py
   scripts/
     seed.py
-  alembic.ini
-  requirements.txt
+    run_ingestion.py
+    data/sample_rrc_production.csv
 ```
 
 ### 1) Prerequisites
@@ -65,14 +62,30 @@ alembic upgrade head
 python -m scripts.seed
 ```
 
-### 6) Start API
+### 6) Run ingestion manually (official RRC source)
+```bash
+python -m scripts.run_ingestion --source-url "$RRC_PRODUCTION_SOURCE_URL"
+```
+
+Local demo CSV option:
+```bash
+python -m scripts.run_ingestion --source-url "file://$(pwd)/scripts/data/sample_rrc_production.csv"
+```
+
+### 7) Start API
 ```bash
 uvicorn app.main:app --reload
 ```
 
-### 7) Verify
-- Health: `GET http://localhost:8000/health`
-- Alerts: `GET http://localhost:8000/alerts`
+## Ingestion notes
+- The ingestion module is source-adapter based (`app/ingestion/*`) so additional providers can be added without changing normalization code.
+- Normalization is idempotent by upserting operators/assets and updating/inserting production records by `(asset_id, period_date)`.
+- Traceability fields are persisted (`source_url`, `source_record_id`, `source_metadata`) on normalized production records, with source metadata also stored on operators and assets.
+- Logging includes successful fetches, parse failures, and partial normalization failures.
+
+## Signals implemented
+- **Production collapse**: latest full month output down `>= 40%` vs trailing 3-month average.
+- **Inactivity / shut-in proxy**: no production reports for `2+` consecutive periods after prior production history.
 
 ## Backend API endpoints
 - `GET /alerts`
@@ -82,17 +95,3 @@ uvicorn app.main:app --reload
 - `GET /watchlists`
 - `POST /watchlists`
 - `POST /watchlists/{id}/items`
-
-## Alert filtering support
-`GET /alerts` supports:
-- `county`
-- `operator`
-- `alert_type`
-- `severity`
-- `start_date` (YYYY-MM-DD)
-- `end_date` (YYYY-MM-DD)
-
-## Notes
-- Seed script loads demo records for all core models so the backend is usable with no external ingestion.
-- Each court case, docket entry, and alert record stores a `source_url` for traceability.
-- APScheduler runs signal-generation service hooks on startup intervals.

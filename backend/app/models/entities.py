@@ -1,7 +1,7 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import Any, Optional
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -13,6 +13,9 @@ class Operator(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     headquarters: Mapped[Optional[str]] = mapped_column(String(255))
+    external_id: Mapped[Optional[str]] = mapped_column(String(100))
+    source_url: Mapped[Optional[str]] = mapped_column(Text)
+    source_metadata: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     assets: Mapped[list["Asset"]] = relationship(back_populates="operator")
@@ -28,6 +31,9 @@ class Asset(Base):
     field: Mapped[str] = mapped_column(String(100), nullable=False)
     basin: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")
+    external_id: Mapped[Optional[str]] = mapped_column(String(100))
+    source_url: Mapped[Optional[str]] = mapped_column(Text)
+    source_metadata: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     operator: Mapped[Operator] = relationship(back_populates="assets")
@@ -37,6 +43,7 @@ class Asset(Base):
 
 class ProductionRecord(Base):
     __tablename__ = "production_records"
+    __table_args__ = (UniqueConstraint("asset_id", "period_date", name="uq_production_asset_period"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), nullable=False)
@@ -44,6 +51,9 @@ class ProductionRecord(Base):
     oil_bbl: Mapped[float] = mapped_column(Float, default=0)
     gas_mcf: Mapped[float] = mapped_column(Float, default=0)
     water_bbl: Mapped[float] = mapped_column(Float, default=0)
+    source_url: Mapped[Optional[str]] = mapped_column(Text)
+    source_record_id: Mapped[Optional[str]] = mapped_column(String(120))
+    source_metadata: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
 
     asset: Mapped[Asset] = relationship(back_populates="production_records")
 
